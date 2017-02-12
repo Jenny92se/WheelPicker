@@ -276,6 +276,11 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
 
     private boolean isDebug;
 
+    public boolean getIsClick()
+    {
+        return isClick;
+    }
+
     public WheelPicker(Context context) {
         this(context, null);
     }

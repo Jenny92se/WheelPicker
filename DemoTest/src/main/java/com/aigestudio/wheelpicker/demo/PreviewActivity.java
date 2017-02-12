@@ -16,10 +16,7 @@ import com.aigestudio.wheelpicker.WheelPicker;
 public class PreviewActivity extends Activity implements WheelPicker.OnItemSelectedListener {
 
     private String getItem;
-    private boolean isSelected=false;
-    private boolean isDown=false;
-    private boolean isUp=false;
-
+    private WheelPicker wheelRight;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -29,9 +26,14 @@ public class PreviewActivity extends Activity implements WheelPicker.OnItemSelec
        // wheelLeft.setOnItemSelectedListener(this);
     //    WheelPicker wheelCenter = (WheelPicker) findViewById(R.id.main_wheel_center);
      //   wheelCenter.setOnItemSelectedListener(this);
-        WheelPicker wheelRight = (WheelPicker) findViewById(R.id.main_wheel_right);
+        wheelRight = (WheelPicker) findViewById(R.id.main_wheel_right);
         wheelRight.setOnItemSelectedListener(this);
+  //      wheelRight.setClickable(true);
         wheelRight.setOnTouchListener(touchListener);
+      //  wheelRight.setOnClickListener(clickListener);
+        int initialPosition=wheelRight.getCurrentItemPosition();
+        Log.d("initial position","pos: "+initialPosition);
+        getItem=wheelRight.getData().get(initialPosition).toString();
     }
 
     @Override
@@ -48,50 +50,29 @@ public class PreviewActivity extends Activity implements WheelPicker.OnItemSelec
                 text = "Right:";
                 break;
         }
-    //    Intent intent = new Intent(getApplicationContext(), ContentActivity.class);
- //       intent.putExtra("item", String.valueOf(data));
-    //    startActivity(intent);
         getItem=String.valueOf(data);
-        if(isUp&&isDown) {
-            isSelected = true;
-            Log.d("selected","true");
-        }
-        else {
-            isSelected=false;
-            Log.d("selected","false");
-        }
-        isDown=false;
-        isUp=false;
 
     }
 
+    // interface를 하나밖에 implement 하지 못하여 리스너 객체를 생성하여 사용
     private View.OnTouchListener touchListener = new View.OnTouchListener(){
 
         public boolean onTouch(View v, MotionEvent event)
         {
             switch (event.getAction()){
-
                 // if pressed
                 case MotionEvent.ACTION_DOWN:{
-                    if(isSelected) {
-                        isSelected=false;
-                        Log.d("selected","false");
-                        Intent intent = new Intent(getApplicationContext(), ContentActivity.class);
-                        intent.putExtra("item", getItem);
-                        startActivity(intent);
-
-                    }
-                    isDown=true;
                     break;
                 }
-
                 case MotionEvent.ACTION_CANCEL:
                 case MotionEvent.ACTION_UP:{
-
-                    isUp=true;
+                        if(wheelRight.getIsClick()) { //아이템 선택 후, 클릭일 경우만 인탠트발생.
+                            Intent intent = new Intent(getApplicationContext(), ContentActivity.class);
+                            intent.putExtra("item", getItem);
+                            startActivity(intent);
+                        }
                     break;
                 }
-
                 default:{
                     break;
                 }
@@ -100,4 +81,15 @@ public class PreviewActivity extends Activity implements WheelPicker.OnItemSelec
             // false이 onTouchListener 이후에도 다른 Listener들이 동작하게 함.
         }
     };
+
+    private View.OnClickListener clickListener = new View.OnClickListener(){
+        @Override
+        public void onClick(View v) {
+            Log.d("click","true");
+            Intent intent = new Intent(getApplicationContext(), ContentActivity.class);
+            intent.putExtra("item", getItem);
+            startActivity(intent);
+        }
+    };
+
 }
