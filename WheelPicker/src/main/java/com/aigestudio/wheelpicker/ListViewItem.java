@@ -1,9 +1,5 @@
 package com.aigestudio.wheelpicker;
 
-/**
- * Created by jose de corea on 2017-02-05.
- */
-
 public class ListViewItem {
     private String ncodeStr;
     private int iconDrawable;
