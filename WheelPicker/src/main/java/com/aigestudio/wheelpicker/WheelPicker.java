@@ -1,7 +1,10 @@
 package com.aigestudio.wheelpicker;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Camera;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
@@ -20,8 +23,7 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.widget.Scroller;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.ArrayList;
 
 /**
  * 滚轮选择器
@@ -73,11 +75,12 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
 
     private Camera mCamera;
     private Matrix mMatrixRotate, mMatrixDepth;
+    private ArrayList<ListViewItem> viewData=null;
 
     /**
      * 数据源
      */
-    private List mData;
+  //  private List mData;
 
     /**
      * 最宽的文本
@@ -289,9 +292,9 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
         super(context, attrs);
 
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.WheelPicker);
-        int idData = a.getResourceId(R.styleable.WheelPicker_wheel_data, 0);
-        mData = Arrays.asList(getResources()
-                .getStringArray(idData == 0 ? R.array.WheelArrayDefault : idData));
+//        int idData = a.getResourceId(R.styleable.WheelPicker_wheel_data, 0);
+//        mData = Arrays.asList(getResources()
+//                .getStringArray(idData == 0 ? R.array.WheelArrayDefault : idData));
         mItemTextSize = a.getDimensionPixelSize(R.styleable.WheelPicker_wheel_item_text_size,
                 getResources().getDimensionPixelSize(R.dimen.WheelItemTextSize));
         mVisibleItemCount = a.getInt(R.styleable.WheelPicker_wheel_visible_item_count, 7);
@@ -323,14 +326,15 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
 
         mPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.LINEAR_TEXT_FLAG);
         mPaint.setTextSize(mItemTextSize);
+        //mPaint.setTextAlign(Paint.Align.RIGHT);
 
         // 更新文本对齐方式
         // Update alignment of text
-        updateItemTextAlign();
+    //    updateItemTextAlign();
 
         // 计算文本尺寸
         // Correct sizes of text
-        computeTextSize();
+   //     computeTextSize();
 
         mScroller = new Scroller(getContext());
 
@@ -368,15 +372,24 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
     private void computeTextSize() {
         mTextMaxWidth = mTextMaxHeight = 0;
         if (hasSameWidth) {
-            mTextMaxWidth = (int) mPaint.measureText(String.valueOf(mData.get(0)));
+      //      mTextMaxWidth = (int) mPaint.measureText(String.valueOf(mData.get(0)));
+            mTextMaxWidth = (int) mPaint.measureText(viewData.get(0).getTitle());
         } else if (isPosInRang(mTextMaxWidthPosition)) {
-            mTextMaxWidth = (int) mPaint.measureText
-                    (String.valueOf(mData.get(mTextMaxWidthPosition)));
+//            mTextMaxWidth = (int) mPaint.measureText
+//                    (String.valueOf(mData.get(mTextMaxWidthPosition)));
+            mTextMaxWidth = (int) mPaint.measureText(viewData.get(mTextMaxWidthPosition).getTitle());
+
         } else if (!TextUtils.isEmpty(mMaxWidthText)) {
             mTextMaxWidth = (int) mPaint.measureText(mMaxWidthText);
         } else {
-            for (Object obj : mData) {
-                String text = String.valueOf(obj);
+//            for (Object obj : mData) {
+//                String text = String.valueOf(obj);
+//                int width = (int) mPaint.measureText(text);
+//                mTextMaxWidth = Math.max(mTextMaxWidth, width);
+//            }
+            for(int i=0; i<viewData.size(); i++)
+            {
+                String text=viewData.get(i).getTitle();
                 int width = (int) mPaint.measureText(text);
                 mTextMaxWidth = Math.max(mTextMaxWidth, width);
             }
@@ -453,6 +466,7 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
         // Set content region
         mRectDrawn.set(getPaddingLeft(), getPaddingTop(), getWidth() - getPaddingRight(),
                 getHeight() - getPaddingBottom());
+
         if (isDebug)
             Log.i(TAG, "Wheel's drawn rect size is (" + mRectDrawn.width() + ":" +
                     mRectDrawn.height() + ") and location is (" + mRectDrawn.left + ":" +
@@ -483,6 +497,8 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
         // 计算当前选中的数据项区域
         // Correct region of current select item
         computeCurrentItemRect();
+
+        int flagSize=(mRectDrawn.right-mRectDrawn.left)/10;
     }
 
     private void computeDrawnCenter() {
@@ -502,8 +518,10 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
 
     private void computeFlingLimitY() {
         int currentItemOffset = mSelectedItemPosition * mItemHeight;
+//        mMinFlingY = isCyclic ? Integer.MIN_VALUE :
+//                -mItemHeight * (mData.size() - 1) + currentItemOffset;
         mMinFlingY = isCyclic ? Integer.MIN_VALUE :
-                -mItemHeight * (mData.size() - 1) + currentItemOffset;
+                -mItemHeight * (viewData.size() - 1) + currentItemOffset;
         mMaxFlingY = isCyclic ? Integer.MAX_VALUE : currentItemOffset;
     }
 
@@ -526,147 +544,166 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
 
     @Override
     protected void onDraw(Canvas canvas) {
-        if (null != mOnWheelChangeListener)
-            mOnWheelChangeListener.onWheelScrolled(mScrollOffsetY);
-        int drawnDataStartPos = -mScrollOffsetY / mItemHeight - mHalfDrawnItemCount;
-        for (int drawnDataPos = drawnDataStartPos + mSelectedItemPosition,
-             drawnOffsetPos = -mHalfDrawnItemCount;
-             drawnDataPos < drawnDataStartPos + mSelectedItemPosition + mDrawnItemCount;
-             drawnDataPos++, drawnOffsetPos++) {
-            String data = "";
-            if (isCyclic) {
-                int actualPos = drawnDataPos % mData.size();
-                actualPos = actualPos < 0 ? (actualPos + mData.size()) : actualPos;
-                data = String.valueOf(mData.get(actualPos));
-            } else {
-                if (isPosInRang(drawnDataPos))
-                    data = String.valueOf(mData.get(drawnDataPos));
-            }
-            mPaint.setColor(mItemTextColor);
-            mPaint.setStyle(Paint.Style.FILL);
-            int mDrawnItemCenterY = mDrawnCenterY + (drawnOffsetPos * mItemHeight) +
-                    mScrollOffsetY % mItemHeight;
+        if(viewData!=null) {
+            if (null != mOnWheelChangeListener)
+                mOnWheelChangeListener.onWheelScrolled(mScrollOffsetY);
+            int drawnDataStartPos = -mScrollOffsetY / mItemHeight - mHalfDrawnItemCount;
+            for (int drawnDataPos = drawnDataStartPos + mSelectedItemPosition,
+                 drawnOffsetPos = -mHalfDrawnItemCount;
+                 drawnDataPos < drawnDataStartPos + mSelectedItemPosition + mDrawnItemCount;
+                 drawnDataPos++, drawnOffsetPos++) {
+                String data = "";
+                Bitmap orgIcon;
+                Bitmap flagIcon;
 
-            int distanceToCenter = 0;
-            if (isCurved) {
-                // 计算数据项绘制中心距离滚轮中心的距离比率
-                // Correct ratio of item's drawn center to wheel center
-                float ratio = (mDrawnCenterY - Math.abs(mDrawnCenterY - mDrawnItemCenterY) -
-                        mRectDrawn.top) * 1.0F / (mDrawnCenterY - mRectDrawn.top);
-
-                // 计算单位
-                // Correct unit
-                int unit = 0;
-                if (mDrawnItemCenterY > mDrawnCenterY)
-                    unit = 1;
-                else if (mDrawnItemCenterY < mDrawnCenterY)
-                    unit = -1;
-
-                float degree = (-(1 - ratio) * 90 * unit);
-                if (degree < -90) degree = -90;
-                if (degree > 90) degree = 90;
-                distanceToCenter = computeSpace((int) degree);
-
-                int transX = mWheelCenterX;
-                switch (mItemAlign) {
-                    case ALIGN_LEFT:
-                        transX = mRectDrawn.left;
-                        break;
-                    case ALIGN_RIGHT:
-                        transX = mRectDrawn.right;
-                        break;
+                Resources res = getResources();
+                if (isCyclic) {
+                    int actualPos = drawnDataPos % viewData.size();
+                    actualPos = actualPos < 0 ? (actualPos + viewData.size()) : actualPos;
+                    //  data = String.valueOf(mData.get(actualPos));
+                    data = String.valueOf(viewData.get(actualPos).getTitle());
+                    orgIcon = BitmapFactory.decodeResource(res, viewData.get(actualPos).getIcon());
+                } else {
+                    if (isPosInRang(drawnDataPos))
+                        //  data = String.valueOf(mData.get(drawnDataPos));
+                        data = String.valueOf(viewData.get(drawnDataPos).getTitle());
+                    orgIcon = BitmapFactory.decodeResource(res, viewData.get(drawnDataPos).getIcon());
                 }
-                int transY = mWheelCenterY - distanceToCenter;
+            //    mRectDrawn.width()
+           //    int flagSize=(mRectDrawn.right-mRectDrawn.left);
+                flagIcon = Bitmap.createScaledBitmap(orgIcon, mRectDrawn.width()/5, mItemHeight, true);
+                mPaint.setColor(mItemTextColor);
+                mPaint.setStyle(Paint.Style.FILL);
+                int mDrawnItemCenterY = mDrawnCenterY + (drawnOffsetPos * mItemHeight) +
+                        mScrollOffsetY % mItemHeight;
 
-                mCamera.save();
-                mCamera.rotateX(degree);
-                mCamera.getMatrix(mMatrixRotate);
-                mCamera.restore();
-                mMatrixRotate.preTranslate(-transX, -transY);
-                mMatrixRotate.postTranslate(transX, transY);
+                int distanceToCenter = 0;
+                if (isCurved) {
+                    // 计算数据项绘制中心距离滚轮中心的距离比率
+                    // Correct ratio of item's drawn center to wheel center
+                    float ratio = (mDrawnCenterY - Math.abs(mDrawnCenterY - mDrawnItemCenterY) -
+                            mRectDrawn.top) * 1.0F / (mDrawnCenterY - mRectDrawn.top);
 
-                mCamera.save();
-                mCamera.translate(0, 0, computeDepth((int) degree));
-                mCamera.getMatrix(mMatrixDepth);
-                mCamera.restore();
-                mMatrixDepth.preTranslate(-transX, -transY);
-                mMatrixDepth.postTranslate(transX, transY);
+                    // 计算单位
+                    // Correct unit
+                    int unit = 0;
+                    if (mDrawnItemCenterY > mDrawnCenterY)
+                        unit = 1;
+                    else if (mDrawnItemCenterY < mDrawnCenterY)
+                        unit = -1;
 
-                mMatrixRotate.postConcat(mMatrixDepth);
+                    float degree = (-(1 - ratio) * 90 * unit);
+                    if (degree < -90) degree = -90;
+                    if (degree > 90) degree = 90;
+                    distanceToCenter = computeSpace((int) degree);
+
+                    int transX = mWheelCenterX;
+                    switch (mItemAlign) {
+                        case ALIGN_LEFT:
+                            transX = mRectDrawn.left;
+                            break;
+                        case ALIGN_RIGHT:
+                            transX = mRectDrawn.right;
+                            break;
+                    }
+                    int transY = mWheelCenterY - distanceToCenter;
+
+                    mCamera.save();
+                    mCamera.rotateX(degree);
+                    mCamera.getMatrix(mMatrixRotate);
+                    mCamera.restore();
+                    mMatrixRotate.preTranslate(-transX, -transY);
+                    mMatrixRotate.postTranslate(transX, transY);
+
+                    mCamera.save();
+                    mCamera.translate(0, 0, computeDepth((int) degree));
+                    mCamera.getMatrix(mMatrixDepth);
+                    mCamera.restore();
+                    mMatrixDepth.preTranslate(-transX, -transY);
+                    mMatrixDepth.postTranslate(transX, transY);
+
+                    mMatrixRotate.postConcat(mMatrixDepth);
+                }
+                if (hasAtmospheric) {
+                    int alpha = (int) ((mDrawnCenterY - Math.abs(mDrawnCenterY - mDrawnItemCenterY)) *
+                            1.0F / mDrawnCenterY * 255);
+                    alpha = alpha < 0 ? 0 : alpha;
+                    mPaint.setAlpha(alpha);
+                }
+                // 根据卷曲与否计算数据项绘制Y方向中心坐标
+                // Correct item's drawn centerY base on curved state
+                int drawnCenterY = isCurved ? mDrawnCenterY - distanceToCenter : mDrawnItemCenterY;
+                //int flagSize=(mRectDrawn.right-mRectDrawn.left)/5;
+                // 判断是否需要为当前数据项绘制不同颜色
+                // Judges need to draw different color for current item or not
+                if (mSelectedItemTextColor != -1) {
+                    canvas.save();
+                    if (isCurved) canvas.concat(mMatrixRotate);
+                    canvas.clipRect(mRectCurrentItem, Region.Op.DIFFERENCE);
+                    canvas.drawBitmap(flagIcon, 0, drawnCenterY, null);
+                 //   canvas.drawBitmap(flagIcon,null, new RectF(0, 0, flagSize, drawnCenterY), null);
+                 //   canvas.drawText(data, mDrawnCenterX, drawnCenterY, mPaint);
+                    canvas.drawText(data, mRectDrawn.centerX(), drawnCenterY, mPaint);
+                    canvas.restore();
+
+                    mPaint.setColor(mSelectedItemTextColor);
+                    canvas.save();
+
+                    if (isCurved) canvas.concat(mMatrixRotate);
+                    canvas.clipRect(mRectCurrentItem);
+                    canvas.drawBitmap(flagIcon,0, drawnCenterY,null);
+                    canvas.drawText(data, mRectDrawn.centerX(), drawnCenterY, mPaint);
+                    canvas.restore();
+                } else {
+                    canvas.save();
+                    canvas.clipRect(mRectDrawn);
+                    if (isCurved) canvas.concat(mMatrixRotate);
+                    canvas.drawBitmap(flagIcon, 0, drawnCenterY,null);
+                    canvas.drawText(data,mRectDrawn.centerX(), drawnCenterY, mPaint);
+                    canvas.restore();
+                }
+                if (isDebug) {
+                    canvas.save();
+                    canvas.clipRect(mRectDrawn);
+                    mPaint.setColor(0xFFEE3333);
+                    int lineCenterY = mWheelCenterY + (drawnOffsetPos * mItemHeight);
+                    canvas.drawLine(mRectDrawn.left, lineCenterY, mRectDrawn.right, lineCenterY,
+                            mPaint);
+                    mPaint.setColor(0xFF3333EE);
+                    mPaint.setStyle(Paint.Style.STROKE);
+                    int top = lineCenterY - mHalfItemHeight;
+                    canvas.drawRect(mRectDrawn.left, top, mRectDrawn.right, top + mItemHeight, mPaint);
+                    canvas.restore();
+                }
             }
-            if (hasAtmospheric) {
-                int alpha = (int) ((mDrawnCenterY - Math.abs(mDrawnCenterY - mDrawnItemCenterY)) *
-                        1.0F / mDrawnCenterY * 255);
-                alpha = alpha < 0 ? 0 : alpha;
-                mPaint.setAlpha(alpha);
+            // 是否需要绘制幕布
+            // Need to draw curtain or not
+            if (hasCurtain) {
+                mPaint.setColor(mCurtainColor);
+                mPaint.setStyle(Paint.Style.FILL);
+                canvas.drawRect(mRectCurrentItem, mPaint);
             }
-            // 根据卷曲与否计算数据项绘制Y方向中心坐标
-            // Correct item's drawn centerY base on curved state
-            int drawnCenterY = isCurved ? mDrawnCenterY - distanceToCenter : mDrawnItemCenterY;
-
-            // 判断是否需要为当前数据项绘制不同颜色
-            // Judges need to draw different color for current item or not
-            if (mSelectedItemTextColor != -1) {
-                canvas.save();
-                if (isCurved) canvas.concat(mMatrixRotate);
-                canvas.clipRect(mRectCurrentItem, Region.Op.DIFFERENCE);
-                canvas.drawText(data, mDrawnCenterX, drawnCenterY, mPaint);
-                canvas.restore();
-
-                mPaint.setColor(mSelectedItemTextColor);
-                canvas.save();
-                if (isCurved) canvas.concat(mMatrixRotate);
-                canvas.clipRect(mRectCurrentItem);
-                canvas.drawText(data, mDrawnCenterX, drawnCenterY, mPaint);
-                canvas.restore();
-            } else {
-                canvas.save();
-                canvas.clipRect(mRectDrawn);
-                if (isCurved) canvas.concat(mMatrixRotate);
-                canvas.drawText(data, mDrawnCenterX, drawnCenterY, mPaint);
-                canvas.restore();
+            // 是否需要绘制指示器
+            // Need to draw indicator or not
+            if (hasIndicator) {
+                mPaint.setColor(mIndicatorColor);
+                mPaint.setStyle(Paint.Style.FILL);
+                canvas.drawRect(mRectIndicatorHead, mPaint);
+                canvas.drawRect(mRectIndicatorFoot, mPaint);
             }
             if (isDebug) {
-                canvas.save();
-                canvas.clipRect(mRectDrawn);
-                mPaint.setColor(0xFFEE3333);
-                int lineCenterY = mWheelCenterY + (drawnOffsetPos * mItemHeight);
-                canvas.drawLine(mRectDrawn.left, lineCenterY, mRectDrawn.right, lineCenterY,
-                        mPaint);
-                mPaint.setColor(0xFF3333EE);
-                mPaint.setStyle(Paint.Style.STROKE);
-                int top = lineCenterY - mHalfItemHeight;
-                canvas.drawRect(mRectDrawn.left, top, mRectDrawn.right, top + mItemHeight, mPaint);
-                canvas.restore();
+                mPaint.setColor(0x4433EE33);
+                mPaint.setStyle(Paint.Style.FILL);
+                canvas.drawRect(0, 0, getPaddingLeft(), getHeight(), mPaint);
+                canvas.drawRect(0, 0, getWidth(), getPaddingTop(), mPaint);
+                canvas.drawRect(getWidth() - getPaddingRight(), 0, getWidth(), getHeight(), mPaint);
+                canvas.drawRect(0, getHeight() - getPaddingBottom(), getWidth(), getHeight(), mPaint);
             }
-        }
-        // 是否需要绘制幕布
-        // Need to draw curtain or not
-        if (hasCurtain) {
-            mPaint.setColor(mCurtainColor);
-            mPaint.setStyle(Paint.Style.FILL);
-            canvas.drawRect(mRectCurrentItem, mPaint);
-        }
-        // 是否需要绘制指示器
-        // Need to draw indicator or not
-        if (hasIndicator) {
-            mPaint.setColor(mIndicatorColor);
-            mPaint.setStyle(Paint.Style.FILL);
-            canvas.drawRect(mRectIndicatorHead, mPaint);
-            canvas.drawRect(mRectIndicatorFoot, mPaint);
-        }
-        if (isDebug) {
-            mPaint.setColor(0x4433EE33);
-            mPaint.setStyle(Paint.Style.FILL);
-            canvas.drawRect(0, 0, getPaddingLeft(), getHeight(), mPaint);
-            canvas.drawRect(0, 0, getWidth(), getPaddingTop(), mPaint);
-            canvas.drawRect(getWidth() - getPaddingRight(), 0, getWidth(), getHeight(), mPaint);
-            canvas.drawRect(0, getHeight() - getPaddingBottom(), getWidth(), getHeight(), mPaint);
         }
     }
 
     private boolean isPosInRang(int position) {
-        return position >= 0 && position < mData.size();
+        return position >= 0 && position < viewData.size();
     }
 
     private int computeSpace(int degree) {
@@ -772,16 +809,16 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
 
     @Override
     public void run() {
-        if (null == mData || mData.size() == 0) return;
+        if (null == viewData || viewData.size() == 0) return;
         if (mScroller.isFinished() && !isForceFinishScroll) {
             if (mItemHeight == 0) return;
-            int position = (-mScrollOffsetY / mItemHeight + mSelectedItemPosition) % mData.size();
-            position = position < 0 ? position + mData.size() : position;
+            int position = (-mScrollOffsetY / mItemHeight + mSelectedItemPosition) % viewData.size();
+            position = position < 0 ? position + viewData.size() : position;
             if (isDebug)
-                Log.i(TAG, position + ":" + mData.get(position) + ":" + mScrollOffsetY);
+                Log.i(TAG, position + ":" + viewData.get(position) + ":" + mScrollOffsetY);
             mCurrentItemPosition = position;
             if (null != mOnItemSelectedListener)
-                mOnItemSelectedListener.onItemSelected(this, mData.get(position), position);
+                mOnItemSelectedListener.onItemSelected(this, viewData.get(position).getTitle(), position);
             if (null != mOnWheelChangeListener) {
                 mOnWheelChangeListener.onWheelSelected(position);
                 mOnWheelChangeListener.onWheelScrollStateChanged(SCROLL_STATE_IDLE);
@@ -837,7 +874,7 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
 
     @Override
     public void setSelectedItemPosition(int position) {
-        position = Math.min(position, mData.size() - 1);
+        position = Math.min(position, viewData.size() - 1);
         position = Math.max(position, 0);
         mSelectedItemPosition = position;
         mCurrentItemPosition = position;
@@ -853,15 +890,16 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
     }
 
     @Override
-    public List getData() {
-        return mData;
+    public ArrayList<ListViewItem> getData() {
+        return viewData;
     }
 
     @Override
-    public void setData(List data) {
+    public void setData(ArrayList<ListViewItem> data) {
         if (null == data)
             throw new NullPointerException("WheelPicker's data can not be null!");
-        mData = data;
+       // mData = data;
+       viewData=data;
 
         // 重置位置
         if (mSelectedItemPosition > data.size() - 1 || mCurrentItemPosition > data.size() - 1) {
@@ -917,7 +955,7 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
     public void setMaximumWidthTextPosition(int position) {
         if (!isPosInRang(position))
             throw new ArrayIndexOutOfBoundsException("Maximum width text Position must in [0, " +
-                    mData.size() + "), but current is " + position);
+                    viewData.size() + "), but current is " + position);
         mTextMaxWidthPosition = position;
         computeTextSize();
         requestLayout();
@@ -956,6 +994,7 @@ public class WheelPicker extends View implements IDebug, IWheelPicker, Runnable 
     public void setItemTextSize(int size) {
         mItemTextSize = size;
         mPaint.setTextSize(mItemTextSize);
+     //   mPaint.setTextAlign(Paint.Align.CENTER);
         computeTextSize();
         requestLayout();
         invalidate();

@@ -2,7 +2,7 @@ package com.aigestudio.wheelpicker;
 
 import android.graphics.Typeface;
 
-import java.util.List;
+import java.util.ArrayList;
 
 /**
  * 滚轮选择器方法接口
@@ -145,7 +145,7 @@ public interface IWheelPicker {
      *
      * @return 数据列表
      */
-    List getData();
+    ArrayList<ListViewItem> getData();
 
     /**
      * 设置数据列表
@@ -163,7 +163,7 @@ public interface IWheelPicker {
      *
      * @param data 数据列表
      */
-    void setData(List data);
+    void setData(ArrayList<ListViewItem> data);
 
     /**
      * 设置数据项是否有相同的宽度
